@@ -13,6 +13,42 @@
 void NaiveMatrixMultiply(Matrix *input0, Matrix *input1, Matrix *result)
 {
     //@@ Insert code to implement naive matrix multiply here
+    int rows1, cols1, rows2, cols2;
+    rows1 = input0->shape[0];
+    cols1 = input0->shape[1];
+    rows2 = input1->shape[0];
+    cols2 = input1->shape[1];
+
+    // Initialize result matrix
+    for (int i = 0; i < rows1*cols2; i++){
+        result->data[i] = 0.0f;
+    }
+
+    // R1 holds the row of Matrix A
+    for (int r1 = 0; r1 < rows1; r1++){
+        
+        // C2 holds the column of Matrix B
+        for (int c2 = 0; c2 < cols2; c2++){
+
+            // C1 holds the element of R1 (R1xCols1+C1)
+            for(int c1 = 0; c1 < cols1; c1++){
+                // Row1 of Results is filled first, each element iterated by columns of Matrix B
+                // R1 = 0; Cols2 = 2; C2 = 0, 1, 2, 3...;
+                // element = R1xCols2 + C2
+
+                // Matrix A index
+                // R1 = 0; Cols1 = 2; C1 = 0, 1, 2, 3...;
+                // element = R1xCols1+C1
+
+                // Matrix B index
+                // (Column of Matrix A moves pointer of Matrix B down its columns)
+                // C1 = 0, 1, 2, 3...; Cols2 = 2; C2 = 0
+                // element = C1xCols2+C2 
+                result->data[r1*cols2 + c2] += input0->data[r1*cols1 + c1] * input1->data[c1*cols2 + c2];
+            }
+        }
+    }
+
 }
 
 int main(int argc, char *argv[])
@@ -23,11 +59,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    const char *input_file_a = argv[1];
-    const char *input_file_b = argv[2];
-    const char *input_file_c = argv[3];
-    const char *input_file_d = argv[4];
-
+    const char *input_file_a = argv[1]; // Dataset/1/input0.raw   
+    const char *input_file_b = argv[2]; // Dataset/1/input1.raw
+    const char *input_file_c = argv[3]; // Dataset/1/output.raw
+    const char *input_file_d = argv[4]; // output.raw
+ 
     // Host input and output vectors and sizes
     Matrix host_a, host_b, host_c, answer;
     
@@ -45,6 +81,8 @@ int main(int argc, char *argv[])
     int rows, cols;
     //@@ Update these values for the output rows and cols of the output
     //@@ Do not use the results from the answer matrix
+    rows = host_a.shape[0];
+    cols = host_b.shape[1];
 
     // Allocate the memory for the target.
     host_c.shape[0] = rows;
