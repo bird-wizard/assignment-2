@@ -44,13 +44,22 @@ int main(int argc, char *argv[])
     // Sum all elements of the array
     //@@ Modify the below code in the remaining demos
     float sum = 0;
+    int i = 0;
 
-    for (int i = 0; i < rows * cols; i += 4)
+    // Iterate 4 elements at a time
+    // For loop checks that indices called will be within length
+    /*
+    for (i; i+3 < rows * cols; i += 4)
     {
         sum += host_a.data[i];
         sum += host_a.data[i+1];
         sum += host_a.data[i+2];
         sum += host_a.data[i+3];
+    }*/
+
+    // Handle Remainders in a normal for loop
+    for (i; i < rows * cols; i++){
+        sum += host_a.data[i];
     }
 
     printf("sum: %f == %f\n", sum, host_b.data[0]);

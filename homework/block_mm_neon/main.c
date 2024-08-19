@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <arm_neon.h>
 #include "matrix.h"
 
 #define CHECK_ERR(err, msg)                           \
@@ -24,73 +24,56 @@ void BlockMatrixMultiply(Matrix *input0, Matrix *input1, Matrix *result)
         result->data[i] = 0.0f;
     }
 
-    int blockSize = 10;
-    int index_a = 0;
-    int index_b = 0;
-    int index_c = 0;
+    int blockSize = 5;
+    float input[4] = {0.0f};
+    float four_sum = 0;
     
-    // R1 holds the row of Matrix A
-    // Increment by blockSize
-    for (int r1 = 0; r1 < rows1; r1+=blockSize){
-        
-        // C2 holds the column of Matrix B
-        // Increment by blockSize
+    for (int r1 = 0; r1 < rows1; r1+=blockSize){        
         for (int c2 = 0; c2 < cols2; c2+=blockSize){
+
+            // Remainder
+            int real_blockSize_R1 = blockSize;
+            int real_blockSize_C2 = blockSize;
             
-            // C1 iterates over elements in R1
-            // Increment by blockSize
-            for(int c1 = 0; c1 < cols1; c1+=blockSize){
+            if (r1 + blockSize > rows1){
+                real_blockSize_R1 = rows1 - r1;
+            }
             
-                // Catch remainders prior to iterating up to blockSize   
-                int real_blockSize_R1 = blockSize;
-                int real_blockSize_C2 = blockSize;
-                int real_blockSize_C1 = blockSize;
-
-                if (r1 + blockSize > rows1){
-                    real_blockSize_R1 = rows1 - r1;
-                }
-
-                if (c2 + blockSize > cols2){
-                    real_blockSize_C2 = cols2 - c2;
-                }
-
-                if (c1 + blockSize > cols1){
-                    real_blockSize_C1 = cols1 - c1;
-                }
-
-                // e.g. r1 = 0; rows1 = 4; blockSize = 5
-                // real_blockSize = 4 - 0
-
-                // Iterate over R1 Block at index R1 to index R1+BlockSize
+            if (c2 + blockSize > cols2){
+                real_blockSize_C2 = cols2 - c2;
+            }
+            // C1 Iterator
+            for(int c1 = 0; c1 < cols1; c1 += 4){
+                // R1 Block
                 for(int block_r1 = r1; block_r1 < r1 + real_blockSize_R1; block_r1++){
-                    //Iterate over C2 Block at index C2 to index C2+BlockSize
+                    // C2 Block
                     for(int block_c2 = c2; block_c2 < c2 + real_blockSize_C2; block_c2++){
-                        // Iterates over C1 Block at index C1 to index C1+BlockSize
-                        for(int block_c1 = c1; block_c1 < c1 + real_blockSize_C1; block_c1++){
-                            // Row1 of Results is filled first, each element iterated by columns of Matrix B
-                            // R1 = 0; Cols2 = 2; C2 = 0, 1, 2, 3...;
-                            // element = R1xCols2 + C2
-                            index_c = block_r1*cols2 + block_c2; 
-                            
-                            // Matrix A index
-                            // R1 = 0; Cols1 = 2; C1 = 0, 1, 2, 3...;
-                            // element = R1xCols1+C1
-                            index_a = block_r1*cols1 + block_c1;
-                            // Matrix B index
-                            // (Column of Matrix A moves pointer of Matrix B down its columns)
-                            // C1 = 0, 1, 2, 3...; Cols2 = 2; C2 = 0
-                            // element = C1xCols2+C2 
-                            index_b = block_c1*cols2 + block_c2;
+                        
+                            input[0] = input0->data[block_r1*cols1 + c1] * input1->data[c1*cols2 + block_c2];
+                            input[1] = input0->data[block_r1*cols1 + c1 + 1] * input1->data[(c1 + 1)*cols2 + block_c2];
+                            input[2] = input0->data[block_r1*cols1 + c1 + 2] * input1->data[(c1 + 2)*cols2 + block_c2];
+                            input[3] = input0->data[block_r1*cols1 + c1 + 3] * input1->data[(c1 + 3)*cols2 + block_c2];
 
-                            result->data[index_c] += input0->data[index_a] * input1->data[index_b];
+                            
+                            // Load the current 4 elements into a quadword
+                            float32x4_t vec = vld1q_f32(&input);
+
+                            // Sum all four elements of the quadword
+                            float32x2_t low_half = vget_low_f32(vec);
+                            float32x2_t high_half = vget_high_f32(vec);
+                            float32x2_t pair_sum = vpadd_f32(low_half, high_half);
+
+                            // Extract the value from the quad word
+                            four_sum = vget_lane_f32(pair_sum, 0) + vget_lane_f32(pair_sum, 1);
+
+                            result->data[block_r1*cols2 + block_c2] += four_sum;
                         }
                     }
-                }        
-            }
+            }        
         }
     }
-
 }
+    
 
 int main(int argc, char *argv[])
 {

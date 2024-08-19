@@ -10,7 +10,7 @@
         exit(EXIT_FAILURE);                           \
     }
 
-void NaiveMatrixMultiply(Matrix *input0, Matrix *input1, Matrix *result)
+void BlockMatrixMultiply(Matrix *input0, Matrix *input1, Matrix *result)
 {
     //@@ Insert code to implement naive matrix multiply here
     int rows1, cols1, rows2, cols2;
@@ -24,32 +24,43 @@ void NaiveMatrixMultiply(Matrix *input0, Matrix *input1, Matrix *result)
         result->data[i] = 0.0f;
     }
 
-    // R1 holds the row of Matrix A
-    for (int r1 = 0; r1 < rows1; r1++){
-        
-        // C2 holds the column of Matrix B
-        for (int c2 = 0; c2 < cols2; c2++){
+    int blockSize = 10;
+    int index_a = 0;
+    int index_b = 0;
+    int index_c = 0;
+    
+    for (int r1 = 0; r1 < rows1; r1+=blockSize){        
+        for (int c2 = 0; c2 < cols2; c2+=blockSize){
 
-            // C1 holds the element of R1 (R1xCols1+C1)
-            for(int c1 = 0; c1 < cols1; c1++){
-                // Row1 of Results is filled first, each element iterated by columns of Matrix B
-                // e.g. R1 = 0; Cols2 = 5; C2 = 0, 1, 2, 3...;
-                // element = R1xCols2 + C2
-
-                // Matrix A index
-                // R1 = 0; Cols1 = 5; C1 = 0, 1, 2, 3...;
-                // element = R1xCols1+C1
-
-                // Matrix B index
-                // (Column of Matrix A moves pointer of Matrix B down its columns)
-                // C1 = 0, 1, 2, 3...; Cols2 = 5; C2 = 0
-                // element = C1xCols2+C2 
-                result->data[r1*cols2 + c2] += input0->data[r1*cols1 + c1] * input1->data[c1*cols2 + c2];
+            // Remainder
+            int real_blockSize_R1 = blockSize;
+            int real_blockSize_C2 = blockSize;
+            
+            if (r1 + blockSize > rows1){
+                real_blockSize_R1 = rows1 - r1;
             }
+            
+            if (c2 + blockSize > cols2){
+                real_blockSize_C2 = cols2 - c2;
+            }
+            
+            // R1 Block
+            for(int block_r1 = r1; block_r1 < r1 + real_blockSize_R1; block_r1++){
+                // C2 Block
+                for(int block_c2 = c2; block_c2 < c2 + real_blockSize_C2; block_c2++){
+                    // C1 Iterator
+                    for(int c1 = 0; c1 < cols1; c1 += 4){
+                        result->data[block_r1*cols2 + block_c2] += input0->data[block_r1*cols1 + c1] * input1->data[c1*cols2 + block_c2];
+                        result->data[block_r1*cols2 + block_c2] += input0->data[block_r1*cols1 + c1 + 1] * input1->data[(c1 + 1)*cols2 + block_c2];
+                        result->data[block_r1*cols2 + block_c2] += input0->data[block_r1*cols1 + c1 + 2] * input1->data[(c1 + 2)*cols2 + block_c2];
+                        result->data[block_r1*cols2 + block_c2] += input0->data[block_r1*cols1 + c1 + 3] * input1->data[(c1 + 3)*cols2 + block_c2];
+                    }
+                }
+            }        
         }
     }
-
 }
+    
 
 int main(int argc, char *argv[])
 {
@@ -90,7 +101,7 @@ int main(int argc, char *argv[])
     host_c.data = (float *)malloc(sizeof(float) * host_c.shape[0] * host_c.shape[1]);
 
     // Call your matrix multiply.
-    NaiveMatrixMultiply(&host_a, &host_b, &host_c);
+    BlockMatrixMultiply(&host_a, &host_b, &host_c);
 
     // // Call to print the matrix
     // PrintMatrix(&host_c);

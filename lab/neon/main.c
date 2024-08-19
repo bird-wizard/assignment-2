@@ -46,25 +46,28 @@ int main(int argc, char *argv[])
     //@@ Modify the below code in the remaining demos
 
     // Initialize 4 lanes of floats to zero
-    float32x4_t sum_vec = vdupq_n_f32(0.0f);
+    float sum = 0.0;
+    float four_sum;
 
-    // Iterate over 4 values at a time
+    // Increment by 4 instead of by 1
     for (int i = 0; i < rows * cols; i += 4)
     {
-        // Load 4 elements 
+        // Load the current 4 elements into a quadword
         float32x4_t vec = vld1q_f32(&host_a.data[i]);
-        // Add 4 elements  
-        sum_vec = vaddq_f32(sum_vec, vec);        
+
+        // Sum all four elements of the quadword
+        float32x2_t low_half = vget_low_f32(vec);
+        float32x2_t high_half = vget_high_f32(vec);
+        float32x2_t pair_sum = vpadd_f32(low_half, high_half);
+
+        // Extract the value from the quad word
+        four_sum = vget_lane_f32(pair_sum, 0) + vget_lane_f32(pair_sum, 1);
+
+        sum += four_sum;
     }
 
-    // Save 4 elements into float array
-    float result[4];
-    vst1q_f32(result,sum_vec);
-
-    // Sum 4 results
-    float sum = result[0] + result[1] + result[2] + result[3];
-    
     printf("sum: %f == %f\n", sum, host_b.data[0]);
+    //printf("Error (My Sum - Answer Sum): %f\n",sum - host_b.data[0]);
 
     output.data[0] = sum;
     err = CheckMatrix(&host_b, &output);
